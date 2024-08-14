@@ -17,10 +17,14 @@ def view_transactions(user_id):
             print("--------------------------------------------------------------")
             for row in rows:
                 print(f"{row[2]} | {row[3]} | {row[4]} | {row[5]} | {row[6]}")
+            return rows  # Return the fetched rows
         else:
             print("No transactions found.")
+            return []  # Return an empty list if no transactions found
     except Exception as e:
         print(f"An error occurred while viewing the transactions: {e}")
+        return []
+
 
 def edit_transaction(user_id, transaction_id):
     c.execute("SELECT * FROM transactions WHERE id = ? AND user_id = ?", (transaction_id, user_id))

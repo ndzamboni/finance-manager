@@ -9,10 +9,6 @@ def create_tables():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   username TEXT UNIQUE,
                   password TEXT)''')
-    conn.commit()
-
-def drop_and_recreate_transactions_table():
-    c.execute("DROP TABLE IF EXISTS transactions")
     c.execute('''CREATE TABLE IF NOT EXISTS transactions
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   user_id INTEGER,

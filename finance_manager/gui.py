@@ -75,12 +75,27 @@ def show_main_window(user_id):
     def view_transactions_action():
         transactions_window = tk.Toplevel(main_window)
         transactions_window.title("View Transactions")
+
+        # Adding a scrollbar for better viewing
+        scrollbar = tk.Scrollbar(transactions_window)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Creating a Listbox widget to display transactions
+        transaction_list = tk.Listbox(transactions_window, yscrollcommand=scrollbar.set, width=100)
+
         rows = view_transactions(user_id)
+        print("Transactions to display:", rows)  # Debug print
+
         if rows:
-            for index, transaction in enumerate(rows):
-                tk.Label(transactions_window, text=f"{transaction[2]} | {transaction[3]} | {transaction[4]} | {transaction[5]} | {transaction[6]}").grid(row=index, column=0)
+            for transaction in rows:
+                transaction_list.insert(tk.END, f"Date: {transaction[2]} | Amount: {transaction[3]} | Category: {transaction[4]} | Description: {transaction[5]} | Type: {transaction[6]}")
         else:
-            tk.Label(transactions_window, text="No transactions found.").grid(row=0, column=0)
+            transaction_list.insert(tk.END, "No transactions found.")
+
+        transaction_list.pack(side=tk.LEFT, fill=tk.BOTH)
+        scrollbar.config(command=transaction_list.yview)
+
+
 
     def edit_transaction_action():
         transaction_id = transaction_id_entry.get()
