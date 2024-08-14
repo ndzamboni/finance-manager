@@ -1,17 +1,17 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import datetime  # Import the datetime module
+from datetime import datetime
+from tkcalendar import DateEntry
 
 from .auth import login_user, register_user
-from .transactions import add_transaction, edit_transaction, delete_transaction, view_transactions
+from .transactions import add_transaction, edit_transaction, delete_transaction, view_transactions, get_transaction_by_id
 from .models import Transaction
 from .visualization import plot_income_expense_trend, plot_monthly_expenses
 from .reports import generate_yearly_summary, generate_monthly_report
 
-
 def create_menu_bar(main_window, user_id):
     menu_bar = tk.Menu(main_window)
-    
+
     # File Menu
     file_menu = tk.Menu(menu_bar, tearoff=0)
     file_menu.add_command(label="Exit", command=main_window.quit)
@@ -31,7 +31,6 @@ def create_menu_bar(main_window, user_id):
     menu_bar.add_cascade(label="Help", menu=help_menu)
 
     main_window.config(menu=menu_bar)
-
 
 def show_login_window():
     login_window = tk.Tk()
@@ -85,106 +84,161 @@ def show_main_window(user_id):
     main_window = tk.Tk()
     main_window.title("Finance Manager")
 
-    # Create a menu bar
     create_menu_bar(main_window, user_id)
 
-    # Modern TTK styling
     style = ttk.Style()
     style.configure("TButton", font=("Arial", 10))
     style.configure("TLabel", font=("Arial", 12))
+
+    global transaction_listbox
 
     def add_transaction_action():
         date = date_entry.get()
         amount = amount_entry.get()
         category = category_entry.get()
         description = description_entry.get()
-        transaction_type = transaction_type_var.get()
+        transaction_type = "income" if income_switch.get() else "expense"
         if validate_date(date) and validate_amount(amount):
             transaction = Transaction(date, float(amount), category, description, transaction_type)
             add_transaction(user_id, transaction)
             messagebox.showinfo("Success", "Transaction added successfully!")
             clear_entries()
+            refresh_transaction_listbox()
         else:
             messagebox.showerror("Error", "Invalid input.")
 
-    def get_selected_transaction_id():
-        selected_index = transaction_list.curselection()
-        if selected_index:
-            return transaction_ids[selected_index[0]]  # Return the ID of the selected transaction
-        else:
-            messagebox.showerror("Error", "No transaction selected.")
-            return None
-
-    def edit_transaction_action():
-        transaction_id = get_selected_transaction_id()
-        if transaction_id:
-            edit_transaction(user_id, transaction_id)
-
-    def delete_transaction_action():
-        transaction_id = get_selected_transaction_id()
-        if transaction_id:
-            delete_transaction(user_id, transaction_id)
-
     def view_transactions_action():
         transactions_window = tk.Toplevel(main_window)
-        transactions_window.title("View Transactions")
+        transactions_window.title("View Financials")
 
-        # Adding a scrollbar for better viewing
-        scrollbar = tk.Scrollbar(transactions_window)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Creating a Listbox widget to display transactions
-        global transaction_list
-        transaction_list = tk.Listbox(transactions_window, yscrollcommand=scrollbar.set, width=100, selectmode=tk.SINGLE)
-        scrollbar.config(command=transaction_list.yview)
-
-        global transaction_ids
-        transaction_ids = []  # To keep track of transaction IDs
+        summary_text = tk.Text(transactions_window, wrap=tk.WORD, width=100, height=20)
+        summary_text.pack(padx=10, pady=10)
 
         rows = view_transactions(user_id)
         if rows:
-            for index, transaction in enumerate(rows):
-                transaction_list.insert(tk.END, f"{transaction[0]}: Date: {transaction[2]} | Amount: {transaction[3]} | Category: {transaction[4]} | Description: {transaction[5]} | Type: {transaction[6]}")
-                transaction_ids.append(transaction[0])  # Store the transaction ID
+            financials = {}
+            for transaction in rows:
+                year_month = transaction[2][:7]
+                if year_month not in financials:
+                    financials[year_month] = {"income": 0, "expense": 0}
+                if transaction[6] == "income":
+                    financials[year_month]["income"] += transaction[3]
+                else:
+                    financials[year_month]["expense"] += transaction[3]
+
+            for year_month, values in financials.items():
+                net_amount = values["income"] - values["expense"]
+                summary_text.insert(tk.END, f"{year_month}: Income: ${values['income']:.2f}, Expense: ${values['expense']:.2f}, Net: ${net_amount:.2f}\n")
         else:
-            transaction_list.insert(tk.END, "No transactions found.")
+            summary_text.insert(tk.END, "No transactions found.")
 
-        transaction_list.pack(side=tk.LEFT, fill=tk.BOTH)
+    def edit_transaction_action():
+        selected_transaction = transaction_listbox.curselection()
+        if selected_transaction:
+            transaction_id = transaction_listbox.get(selected_transaction[0]).split('|')[0].strip()
+            transaction = get_transaction_by_id(user_id, transaction_id)
+            if transaction:
+                date_entry.delete(0, tk.END)
+                date_entry.insert(0, transaction[2])
+                amount_entry.delete(0, tk.END)
+                amount_entry.insert(0, transaction[3])
+                category_entry.delete(0, tk.END)
+                category_entry.insert(0, transaction[4])
+                description_entry.delete(0, tk.END)
+                description_entry.insert(0, transaction[5])
+                income_switch.set(transaction[6] == "income")
+                toggle_income_expense(income_button, income_switch)
 
-        ttk.Button(transactions_window, text="Edit Selected Transaction", command=edit_transaction_action).pack(side=tk.LEFT, padx=10, pady=10)
-        ttk.Button(transactions_window, text="Delete Selected Transaction", command=delete_transaction_action).pack(side=tk.RIGHT, padx=10, pady=10)
+                def save_changes():
+                    updated_transaction = Transaction(
+                        date_entry.get(), 
+                        float(amount_entry.get()), 
+                        category_entry.get(), 
+                        description_entry.get(), 
+                        "income" if income_switch.get() else "expense"
+                    )
+                    edit_transaction(user_id, transaction_id, updated_transaction.date, updated_transaction.amount, updated_transaction.category, updated_transaction.description, updated_transaction.transaction_type)
+                    messagebox.showinfo("Success", "Transaction updated successfully!")
+                    refresh_transaction_listbox()
+                    clear_entries()
+
+                save_button = ttk.Button(main_window, text="Save Changes", command=save_changes)
+                save_button.grid(row=9, column=1, pady=10)
+        else:
+            messagebox.showerror("Error", "Please select a transaction to edit.")
+
+    def delete_transaction_action():
+        selected_transaction = transaction_listbox.curselection()
+        if selected_transaction:
+            transaction_id = transaction_listbox.get(selected_transaction[0]).split('|')[0].strip()
+            delete_transaction(user_id, transaction_id)
+            refresh_transaction_listbox()
+        else:
+            messagebox.showerror("Error", "Please select a transaction to delete.")
+
+    def refresh_transaction_listbox():
+        transaction_listbox.delete(0, tk.END)
+        rows = view_transactions(user_id)
+        for transaction in rows:
+            transaction_listbox.insert(tk.END, f"{transaction[0]} | Date: {transaction[2]} | Amount: {transaction[3]} | Category: {transaction[4]} | Description: {transaction[5]} | Type: {transaction[6]}")
 
     def clear_entries():
         date_entry.delete(0, tk.END)
         amount_entry.delete(0, tk.END)
         category_entry.delete(0, tk.END)
         description_entry.delete(0, tk.END)
-        transaction_type_var.set("expense")
+        income_switch.set(False)
+        toggle_income_expense(income_button, income_switch)
 
-    # Transaction fields using TTK widgets
+    def format_date(event):
+        date_text = date_entry.get().replace("-", "")
+        if len(date_text) >= 6:
+            formatted_date = f"{date_text[:2]}-{date_text[2:4]}-{date_text[4:]}"
+            date_entry.delete(0, tk.END)
+            date_entry.insert(0, formatted_date)
+
     ttk.Label(main_window, text="Date (YYYY-MM-DD):").grid(row=0, column=0, padx=10, pady=10)
     ttk.Label(main_window, text="Amount:").grid(row=1, column=0, padx=10, pady=10)
     ttk.Label(main_window, text="Category:").grid(row=2, column=0, padx=10, pady=10)
     ttk.Label(main_window, text="Description:").grid(row=3, column=0, padx=10, pady=10)
     ttk.Label(main_window, text="Type:").grid(row=4, column=0, padx=10, pady=10)
 
-    date_entry = ttk.Entry(main_window)
+    date_entry = DateEntry(main_window, date_pattern='y-mm-dd')
+    date_entry.bind("<KeyRelease>", format_date)
+
     amount_entry = ttk.Entry(main_window)
     category_entry = ttk.Entry(main_window)
     description_entry = ttk.Entry(main_window)
-    transaction_type_var = tk.StringVar(value="expense")
-    ttk.Radiobutton(main_window, text="Expense", variable=transaction_type_var, value="expense").grid(row=4, column=1)
-    ttk.Radiobutton(main_window, text="Income", variable=transaction_type_var, value="income").grid(row=4, column=2)
+
+    income_switch = tk.BooleanVar(value=False)
+    income_button = ttk.Button(main_window, text="Income", command=lambda: toggle_income_expense(income_button, income_switch))
 
     date_entry.grid(row=0, column=1, padx=10, pady=10)
     amount_entry.grid(row=1, column=1, padx=10, pady=10)
     category_entry.grid(row=2, column=1, padx=10, pady=10)
     description_entry.grid(row=3, column=1, padx=10, pady=10)
+    income_button.grid(row=4, column=1, padx=10, pady=10)
 
     ttk.Button(main_window, text="Add Transaction", command=add_transaction_action).grid(row=5, column=1, pady=10)
-    ttk.Button(main_window, text="View Transactions", command=view_transactions_action).grid(row=6, column=1, pady=10)
+    ttk.Button(main_window, text="View Financials", command=view_transactions_action).grid(row=6, column=1, pady=10)
+
+    transaction_listbox = tk.Listbox(main_window, height=10, width=80)
+    transaction_listbox.grid(row=7, column=0, columnspan=2, padx=10, pady=10)
+
+    ttk.Button(main_window, text="Edit Transaction", command=edit_transaction_action).grid(row=8, column=0, pady=10)
+    ttk.Button(main_window, text="Delete Transaction", command=delete_transaction_action).grid(row=8, column=1, pady=10)
+
+    refresh_transaction_listbox()
 
     main_window.mainloop()
+
+def toggle_income_expense(button, switch):
+    if switch.get():
+        button.config(text="Expense")
+        switch.set(False)
+    else:
+        button.config(text="Income")
+        switch.set(True)
 
 def validate_date(date_text):
     try:
