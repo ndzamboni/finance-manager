@@ -6,7 +6,7 @@ from tkcalendar import DateEntry
 from .auth import login_user, register_user
 from .transactions import add_transaction, edit_transaction, delete_transaction, view_transactions, get_transaction_by_id
 from .models import Transaction
-from .visualization import plot_income_expense_trend, plot_monthly_expenses
+from .visualization import plot_income_expense_trend, plot_monthly_expenses, plot_income_sources, plot_cumulative_savings
 from .reports import generate_yearly_summary, generate_monthly_report
 
 def create_menu_bar(main_window, user_id):
@@ -19,8 +19,8 @@ def create_menu_bar(main_window, user_id):
 
     # Reports Menu
     reports_menu = tk.Menu(menu_bar, tearoff=0)
-    reports_menu.add_command(label="Monthly Report", command=lambda: generate_monthly_report(user_id, '2024', '08'))
-    reports_menu.add_command(label="Yearly Report", command=lambda: generate_yearly_summary(user_id, '2024'))
+    reports_menu.add_command(label="Monthly Report", command=lambda: display_report(generate_monthly_report(user_id, '2024', '08')))
+    reports_menu.add_command(label="Yearly Report", command=lambda: display_report(generate_yearly_summary(user_id, '2024')))
     reports_menu.add_command(label="Income vs Expense", command=lambda: plot_income_expense_trend(user_id))
     reports_menu.add_command(label="Monthly Expenses", command=lambda: plot_monthly_expenses(user_id, '2024'))
     menu_bar.add_cascade(label="Reports", menu=reports_menu)
@@ -31,6 +31,15 @@ def create_menu_bar(main_window, user_id):
     menu_bar.add_cascade(label="Help", menu=help_menu)
 
     main_window.config(menu=menu_bar)
+
+def display_report(report):
+    report_window = tk.Toplevel()
+    report_window.title("Report")
+    
+    report_text = tk.Text(report_window, wrap=tk.WORD, width=100, height=20)
+    report_text.pack(padx=10, pady=10)
+    report_text.insert(tk.END, report)
+
 
 def show_login_window():
     login_window = tk.Tk()
