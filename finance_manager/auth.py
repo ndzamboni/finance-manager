@@ -1,5 +1,7 @@
 import bcrypt
 from .database import c, conn
+import sqlite3
+
 
 def register_user(username, password):
     hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
