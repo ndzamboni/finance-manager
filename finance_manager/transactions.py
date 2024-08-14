@@ -25,20 +25,15 @@ def view_transactions(user_id):
         print(f"An error occurred while viewing the transactions: {e}")
         return []
 
+def get_transaction_by_id(user_id, transaction_id):
+    try:
+        c.execute("SELECT * FROM transactions WHERE id = ? AND user_id = ?", (transaction_id, user_id))
+        return c.fetchone()
+    except Exception as e:
+        print(f"An error occurred while retrieving the transaction: {e}")
+        return None
 
-def edit_transaction(user_id, transaction_id):
-    c.execute("SELECT * FROM transactions WHERE id = ? AND user_id = ?", (transaction_id, user_id))
-    transaction = c.fetchone()
-    if not transaction:
-        print("Transaction not found.")
-        return
-
-    new_date = input(f"Enter new date (YYYY-MM-DD) [current: {transaction[2]}]: ") or transaction[2]
-    new_amount = input(f"Enter new amount [current: {transaction[3]}]: ") or transaction[3]
-    new_category = input(f"Enter new category [current: {transaction[4]}]: ") or transaction[4]
-    new_description = input(f"Enter new description [current: {transaction[5]}]: ") or transaction[5]
-    new_transaction_type = input(f"Enter new type ('income' or 'expense') [current: {transaction[6]}]: ") or transaction[6]
-
+def edit_transaction(user_id, transaction_id, new_date, new_amount, new_category, new_description, new_transaction_type):
     try:
         c.execute("UPDATE transactions SET date = ?, amount = ?, category = ?, description = ?, transaction_type = ? WHERE id = ? AND user_id = ?",
                   (new_date, new_amount, new_category, new_description, new_transaction_type, transaction_id, user_id))
