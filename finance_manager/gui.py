@@ -9,13 +9,37 @@ from .models import Transaction
 from .visualization import plot_income_expense_trend, plot_monthly_expenses, plot_income_sources, plot_cumulative_savings
 from .reports import generate_yearly_summary, generate_monthly_report
 
-def create_menu_bar(main_window, user_id):
+# Theme Styles
+def apply_light_mode(style, root):
+    style.configure('TButton', background='lightgray', foreground='black')
+    style.configure('TLabel', background='white', foreground='black')
+    style.configure('TFrame', background='white')
+    root.configure(background='white')
+
+def apply_dark_mode(style, root):
+    style.configure('TButton', background='darkgray', foreground='white')
+    style.configure('TLabel', background='black', foreground='white')
+    style.configure('TFrame', background='black')
+    root.configure(background='black')
+
+def toggle_theme(style, dark_mode_var, root):
+    if dark_mode_var.get():
+        apply_dark_mode(style, root)
+    else:
+        apply_light_mode(style, dark_mode_var, root)
+
+def create_menu_bar(main_window, user_id, style, dark_mode_var):
     menu_bar = tk.Menu(main_window)
 
     # File Menu
     file_menu = tk.Menu(menu_bar, tearoff=0)
     file_menu.add_command(label="Exit", command=main_window.quit)
     menu_bar.add_cascade(label="File", menu=file_menu)
+
+    # View Menu
+    view_menu = tk.Menu(menu_bar, tearoff=0)
+    view_menu.add_checkbutton(label="Dark Mode", variable=dark_mode_var, command=lambda: toggle_theme(style, dark_mode_var, main_window))
+    menu_bar.add_cascade(label="View", menu=view_menu)
 
     # Reports Menu
     reports_menu = tk.Menu(menu_bar, tearoff=0)
@@ -40,6 +64,21 @@ def display_report(report):
     report_text.pack(padx=10, pady=10)
     report_text.insert(tk.END, report)
 
+def show_dashboard(user_id, frame):
+    # Clear the frame
+    for widget in frame.winfo_children():
+        widget.destroy()
+
+    # Fetching financial summary
+    total_income = sum(row[3] for row in view_transactions(user_id) if row[6] == 'income')
+    total_expenses = sum(row[3] for row in view_transactions(user_id) if row[6] == 'expense')
+    net_savings = total_income - total_expenses
+
+    # Display the summary
+    ttk.Label(frame, text="Dashboard", font=("Arial", 16)).grid(row=0, column=0, pady=10, sticky='w')
+    ttk.Label(frame, text=f"Total Income: ${total_income:.2f}", font=("Arial", 12)).grid(row=1, column=0, padx=10, pady=5, sticky='w')
+    ttk.Label(frame, text=f"Total Expenses: ${total_expenses:.2f}", font=("Arial", 12)).grid(row=2, column=0, padx=10, pady=5, sticky='w')
+    ttk.Label(frame, text=f"Net Savings: ${net_savings:.2f}", font=("Arial", 12)).grid(row=3, column=0, padx=10, pady=5, sticky='w')
 
 def show_login_window():
     login_window = tk.Tk()
@@ -93,9 +132,25 @@ def show_main_window(user_id):
     main_window = tk.Tk()
     main_window.title("Finance Manager")
 
-    create_menu_bar(main_window, user_id)
-
+    # Theme handling
     style = ttk.Style()
+    dark_mode_var = tk.BooleanVar(value=False)
+    apply_light_mode(style, main_window)
+
+    create_menu_bar(main_window, user_id, style, dark_mode_var)
+
+    # Configure grid layout
+    main_window.columnconfigure(0, weight=1)
+    main_window.rowconfigure(0, weight=1)
+
+    # Main frame
+    main_frame = ttk.Frame(main_window)
+    main_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+    main_frame.columnconfigure(0, weight=1)
+
+    # Show dashboard on startup
+    show_dashboard(user_id, main_frame)
+
     style.configure("TButton", font=("Arial", 10))
     style.configure("TLabel", font=("Arial", 12))
 
@@ -171,7 +226,7 @@ def show_main_window(user_id):
                     refresh_transaction_listbox()
                     clear_entries()
 
-                save_button = ttk.Button(main_window, text="Save Changes", command=save_changes)
+                save_button = ttk.Button(main_frame, text="Save Changes", command=save_changes)
                 save_button.grid(row=9, column=1, pady=10)
         else:
             messagebox.showerror("Error", "Please select a transaction to edit.")
@@ -206,36 +261,40 @@ def show_main_window(user_id):
             date_entry.delete(0, tk.END)
             date_entry.insert(0, formatted_date)
 
-    ttk.Label(main_window, text="Date (YYYY-MM-DD):").grid(row=0, column=0, padx=10, pady=10)
-    ttk.Label(main_window, text="Amount:").grid(row=1, column=0, padx=10, pady=10)
-    ttk.Label(main_window, text="Category:").grid(row=2, column=0, padx=10, pady=10)
-    ttk.Label(main_window, text="Description:").grid(row=3, column=0, padx=10, pady=10)
-    ttk.Label(main_window, text="Type:").grid(row=4, column=0, padx=10, pady=10)
+    ttk.Label(main_frame, text="Date (YYYY-MM-DD):").grid(row=0, column=0, padx=10, pady=10, sticky="e")
+    ttk.Label(main_frame, text="Amount:").grid(row=1, column=0, padx=10, pady=10, sticky="e")
+    ttk.Label(main_frame, text="Category:").grid(row=2, column=0, padx=10, pady=10, sticky="e")
+    ttk.Label(main_frame, text="Description:").grid(row=3, column=0, padx=10, pady=10, sticky="e")
+    ttk.Label(main_frame, text="Type:").grid(row=4, column=0, padx=10, pady=10, sticky="e")
 
-    date_entry = DateEntry(main_window, date_pattern='y-mm-dd')
+    date_entry = DateEntry(main_frame, date_pattern='y-mm-dd')
     date_entry.bind("<KeyRelease>", format_date)
 
-    amount_entry = ttk.Entry(main_window)
-    category_entry = ttk.Entry(main_window)
-    description_entry = ttk.Entry(main_window)
+    amount_entry = ttk.Entry(main_frame)
+    category_entry = ttk.Entry(main_frame)
+    description_entry = ttk.Entry(main_frame)
 
     income_switch = tk.BooleanVar(value=False)
-    income_button = ttk.Button(main_window, text="Income", command=lambda: toggle_income_expense(income_button, income_switch))
+    income_button = ttk.Button(main_frame, text="Income", command=lambda: toggle_income_expense(income_button, income_switch))
 
-    date_entry.grid(row=0, column=1, padx=10, pady=10)
-    amount_entry.grid(row=1, column=1, padx=10, pady=10)
-    category_entry.grid(row=2, column=1, padx=10, pady=10)
-    description_entry.grid(row=3, column=1, padx=10, pady=10)
-    income_button.grid(row=4, column=1, padx=10, pady=10)
+    date_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+    amount_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+    category_entry.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
+    description_entry.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
+    income_button.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
 
-    ttk.Button(main_window, text="Add Transaction", command=add_transaction_action).grid(row=5, column=1, pady=10)
-    ttk.Button(main_window, text="View Financials", command=view_transactions_action).grid(row=6, column=1, pady=10)
+    ttk.Button(main_frame, text="Add Transaction", command=add_transaction_action).grid(row=5, column=1, pady=10, sticky="ew")
+    ttk.Button(main_frame, text="View Financials", command=view_transactions_action).grid(row=6, column=1, pady=10, sticky="ew")
 
-    transaction_listbox = tk.Listbox(main_window, height=10, width=80)
-    transaction_listbox.grid(row=7, column=0, columnspan=2, padx=10, pady=10)
+    transaction_listbox = tk.Listbox(main_frame, height=10)
+    transaction_listbox.grid(row=7, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
 
-    ttk.Button(main_window, text="Edit Transaction", command=edit_transaction_action).grid(row=8, column=0, pady=10)
-    ttk.Button(main_window, text="Delete Transaction", command=delete_transaction_action).grid(row=8, column=1, pady=10)
+    ttk.Button(main_frame, text="Edit Transaction", command=edit_transaction_action).grid(row=8, column=0, pady=10, sticky="ew")
+    ttk.Button(main_frame, text="Delete Transaction", command=delete_transaction_action).grid(row=8, column=1, pady=10, sticky="ew")
+
+    # Configure weights to ensure responsiveness
+    main_frame.rowconfigure(7, weight=1)  # Make the listbox grow in height
+    main_frame.columnconfigure(1, weight=1)  # Make the form elements grow in width
 
     refresh_transaction_listbox()
 
