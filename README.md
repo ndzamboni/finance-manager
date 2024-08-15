@@ -84,19 +84,19 @@ Finance Manager is a desktop application developed with Python and Tkinter. It a
 
 ### Dashboard
 
-![Dashboard](screenshots/dashboard.png)
+![Dashboard](screenshots/dashboard.PNG)
 
 ### Add Transaction
 
-![Add Transaction](screenshots/add_transaction.png)
+![Add Transaction](screenshots/add_transaction.PNG)
 
 ### Monthly Report
 
-![Monthly Report](screenshots/monthly_report.png)
+![Monthly Report](screenshots/monthly_report.PNG)
 
 ### Income vs Expense Chart
 
-![Income vs Expense](screenshots/income_vs_expense.png)
+![Income vs Expense](screenshots/income_vs_expense.PNG)
 
 ## License
 
