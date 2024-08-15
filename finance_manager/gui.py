@@ -26,7 +26,7 @@ def toggle_theme(style, dark_mode_var, root):
     if dark_mode_var.get():
         apply_dark_mode(style, root)
     else:
-        apply_light_mode(style, dark_mode_var, root)
+        apply_light_mode(style, root)
 
 def create_menu_bar(main_window, user_id, style, dark_mode_var):
     menu_bar = tk.Menu(main_window)
